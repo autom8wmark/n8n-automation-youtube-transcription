@@ -1,0 +1,732 @@
+{
+  "name": "Youtube Transcribe/Comment to Docs For Client",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1qE4CTZ0Tobo_6UibDtDt3VprQoV1SPtbjc3OU-bt9PU",
+          "mode": "list",
+          "cachedResultName": "Youtube URLs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qE4CTZ0Tobo_6UibDtDt3VprQoV1SPtbjc3OU-bt9PU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "URL",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qE4CTZ0Tobo_6UibDtDt3VprQoV1SPtbjc3OU-bt9PU/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -304,
+        0
+      ],
+      "id": "52f0115f-c6c3-4cc4-837a-db126320c981",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "3TmItjbPpM04wPqo",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://youtube-mp36.p.rapidapi.com/dl?id={{ $json.videoId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RapidAPI-Key"
+            },
+            {
+              "name": "x-rapidapi-host",
+              "value": "youtube-mp36.p.rapidapi.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        16,
+        272
+      ],
+      "id": "b5f10aaf-54ba-4b9c-944b-de79922a4c91",
+      "name": "Convert to MP3"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.link }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        272
+      ],
+      "id": "1cb707cf-4ad8-4559-8c85-1ccbca723121",
+      "name": "Download MP3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer "
+            },
+            {
+              "name": "Content-Type"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "whisper-1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        816,
+        272
+      ],
+      "id": "6f7feb81-067e-4d0a-bf4f-5e7c62403626",
+      "name": "Transcribe using OpenAI API"
+    },
+    {
+      "parameters": {
+        "folderId": "1k-S_-3HqaEjTk-Mo9rigteOhB5jFV6cK",
+        "title": "={{ $('Convert to MP3').item.json.title }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        432,
+        544
+      ],
+      "id": "6b42617a-a389-4c76-9320-cb669d636138",
+      "name": "Create File for Transcription",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "J1bAY8jpGeuoQH1O",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "locationChoice": "location",
+              "text": "=🎬 Video URL:  {{ $('Google Sheets Trigger').item.json.Youtube_URL }}\n\nTranscript: {{ $('Transcribe using OpenAI API').item.json.text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        608,
+        544
+      ],
+      "id": "06ff8e15-16eb-4cf2-852e-da108d7a82d4",
+      "name": "Update file with transcribed text",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "J1bAY8jpGeuoQH1O",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId={{ $('Get YouTube ID').item.json.videoId }}&maxResults=50",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        800
+      ],
+      "id": "dcb29644-f40b-42a1-a1d9-d038818de3bc",
+      "name": "Get comments",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "kFQxbHkm9lEipnA1",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const comments = $json[\"items\"].map(\n  i => `👤 ${i.snippet.topLevelComment.snippet.authorDisplayName}\\n💬 ${i.snippet.topLevelComment.snippet.textDisplay}`\n);\nreturn [{ json: { comments: comments.join('\\n\\n') } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        800
+      ],
+      "id": "b74755fc-4947-4b03-95c5-bfd78941df9f",
+      "name": "Format Comments"
+    },
+    {
+      "parameters": {
+        "folderId": "164Jm7VM32Ao7goT2mbJMXwr77xGisnsV",
+        "title": "=Comments -  {{ $('Convert to MP3').item.json.title }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        576,
+        800
+      ],
+      "id": "93ace2c2-6bd5-4427-883b-dbb99e23e67a",
+      "name": "Create Document for Comments",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "J1bAY8jpGeuoQH1O",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "locationChoice": "location",
+              "text": "=🎬 Video URL:  {{ $('Google Sheets Trigger').item.json.Youtube_URL }}\n\n💭 Comments:\n{{ $('Format Comments').item.json.comments }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        752,
+        800
+      ],
+      "id": "57c527aa-4e11-4e97-ab3e-cce03c9ea4d3",
+      "name": "Update Document with Comments",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "J1bAY8jpGeuoQH1O",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        832,
+        -112
+      ],
+      "id": "7b42de94-5314-4820-8a9a-e3533270e276",
+      "name": "Wait",
+      "webhookId": "06d62da6-4b7a-44c5-866a-e97a73814a3a"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "user",
+        "user": {
+          "__rl": true,
+          "value": "U09MC83U97W",
+          "mode": "list",
+          "cachedResultName": "carbtemail50"
+        },
+        "text": "The Youtube URL is already Marked as Completed",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        832,
+        96
+      ],
+      "id": "94859695-522c-462c-8f40-6b1bd291f4a0",
+      "name": "Send a message",
+      "webhookId": "b8f06071-0733-493b-8d1d-b9b3f9333fdc",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "ABE7kzNTQ7djRzvh",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1qE4CTZ0Tobo_6UibDtDt3VprQoV1SPtbjc3OU-bt9PU",
+          "mode": "list",
+          "cachedResultName": "Youtube URLs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qE4CTZ0Tobo_6UibDtDt3VprQoV1SPtbjc3OU-bt9PU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "URL",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qE4CTZ0Tobo_6UibDtDt3VprQoV1SPtbjc3OU-bt9PU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Youtube_URL": "={{ $('Google Sheets Trigger').item.json.Youtube_URL }}",
+            "Status": "Completed",
+            "Transcript_Doc_URL": "=https://docs.google.com/document/d/{{ $('Update file with transcribed text').item.json.documentId }}",
+            "Comments_Doc_URL": "=https://docs.google.com/document/d/{{ $json.documentId }}"
+          },
+          "matchingColumns": [
+            "Youtube_URL"
+          ],
+          "schema": [
+            {
+              "id": "Youtube_URL",
+              "displayName": "Youtube_URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Transcript_Doc_URL",
+              "displayName": "Transcript_Doc_URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Comments_Doc_URL",
+              "displayName": "Comments_Doc_URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        976,
+        800
+      ],
+      "id": "060475cf-ca97-4416-be7f-e4f9d67844c9",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "NoFkzHUzeVSpKSUQ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputUrl = $json[\"Youtube_URL\"];\nif (!inputUrl) {\n  throw new Error(\"Missing YouTube_URL field in input\");\n}\n\nlet url = inputUrl.trim();\nlet videoId = \"\";\n\n// Ensure it starts with protocol\nif (!url.startsWith(\"http\")) {\n  url = \"https://\" + url;\n}\n\n// Try to extract the ID\n// Matches ?v=VIDEOID or youtu.be/VIDEOID or /embed/VIDEOID or /shorts/VIDEOID\nconst regex = /(?:v=|\\/)([0-9A-Za-z_-]{11})(?:[?&/]|$)/;\nconst match = url.match(regex);\n\nif (match && match[1]) {\n  videoId = match[1];\n  return [{ json: { videoId } }];\n} else {\n  throw new Error(\"Invalid YouTube URL format\");\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "f02dc963-809f-4fa9-ab1d-822385cf25b1",
+      "name": "Get YouTube ID",
+      "notes": "This function node will get the YouTube URL ID for any type of URL or video"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d6f5221e-118b-48a4-a7f6-c41506bfa065",
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "Pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "fc76bb92-4c75-46bf-aebb-da0ae9cced95",
+      "name": "Filter entries that are Pending"
+    },
+    {
+      "parameters": {
+        "jsCode": "const maxChunkSize = 20 * 1024 * 1024; // 20MB\nconst binaryData = items[0].binary.data;\n\nif (!binaryData || !binaryData.data) {\n  throw new Error(\"No binary audio data found\");\n}\n\n// Convert base64 data to Buffer\nconst fileBuffer = Buffer.from(binaryData.data, 'base64');\nconst fileSize = fileBuffer.length;\n\nconst chunks = [];\n\n// ✅ If file is smaller than chunk size, just return it directly\nif (fileSize <= maxChunkSize) {\n  return [{\n    binary: {\n      data: binaryData\n    }\n  }];\n}\n\n// 🧩 If file is larger, split into multiple chunks\nfor (let i = 0; i < fileBuffer.length; i += maxChunkSize) {\n  const chunk = fileBuffer.slice(i, i + maxChunkSize);\n  chunks.push({\n    binary: {\n      data: {\n        data: chunk.toString('base64'),\n        mimeType: binaryData.mimeType,\n        fileExtension: binaryData.fileExtension || 'mp3'\n      }\n    }\n  });\n}\n\nreturn chunks;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        272
+      ],
+      "id": "2eb03388-1952-4622-91e0-30977f6457ec",
+      "name": "Divide into chunks"
+    },
+    {
+      "parameters": {
+        "jsCode": "let fullText = \"\";\n\n// Merge all the Whisper outputs\nfor (const item of items) {\n  if (item.json.text) {\n    fullText += item.json.text.trim() + \"\\n\\n\";\n  }\n}\n\n// Fallback if no output\nif (!fullText) {\n  fullText = \"⚠️ No transcription text returned from Whisper.\";\n}\n\nreturn [{ json: { text: fullText.trim() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        544
+      ],
+      "id": "be58771a-1d8e-4923-aa51-a0be347bd549",
+      "name": "Merge smaller output by WhisperAPI"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "79267c40-9e3e-499e-b37d-15a158d7ccc8",
+              "leftValue": "={{ $('Google Sheets Trigger').item.json.Status }}",
+              "rightValue": "Pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "2941cabb-6cf4-47b8-9d70-ea30f745389b",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        272
+      ],
+      "id": "0fb933ee-740a-47c5-9a77-484832eedb21",
+      "name": "Wait1",
+      "webhookId": "cb8a6c30-9ede-4a2e-85b9-f9c6b4c94312"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filter entries that are Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to MP3": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download MP3": {
+      "main": [
+        [
+          {
+            "node": "Divide into chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe using OpenAI API": {
+      "main": [
+        [
+          {
+            "node": "Merge smaller output by WhisperAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create File for Transcription": {
+      "main": [
+        [
+          {
+            "node": "Update file with transcribed text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update file with transcribed text": {
+      "main": [
+        [
+          {
+            "node": "Get comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get comments": {
+      "main": [
+        [
+          {
+            "node": "Format Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Comments": {
+      "main": [
+        [
+          {
+            "node": "Create Document for Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Document for Comments": {
+      "main": [
+        [
+          {
+            "node": "Update Document with Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Convert to MP3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Document with Comments": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get YouTube ID": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter entries that are Pending": {
+      "main": [
+        [
+          {
+            "node": "Get YouTube ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Divide into chunks": {
+      "main": [
+        [
+          {
+            "node": "Transcribe using OpenAI API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge smaller output by WhisperAPI": {
+      "main": [
+        [
+          {
+            "node": "Create File for Transcription",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Download MP3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f32285a1-9af0-4c9b-8171-73ce5f3938ba",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "08422c9e895a167179b002a65188a76812bfe147ca46637d21addba06f410b38"
+  },
+  "id": "4u2a1s24Zn7tpvMw",
+  "tags": []
+}
